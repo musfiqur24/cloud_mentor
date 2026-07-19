@@ -1115,3 +1115,112 @@ input[type="range"] {
     min-height: 240px;
   }
 }
+
+/* UI refinement only: application behavior and component logic are unchanged. */
+:root {
+  font-family: "NB2 International", "Noto Sans Bengali", "Noto Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  --shadow-hover: 0 24px 58px rgba(0, 0, 0, 0.36);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.file-picker:focus-within {
+  outline: 3px solid rgba(125, 211, 252, 0.6);
+  outline-offset: 3px;
+}
+
+.app-shell { width: min(1240px, calc(100% - 32px)); }
+
+.glass-card,
+.hero-panel,
+.hero-pipeline { border-radius: 22px; }
+
+.hero-panel,
+.hero-pipeline { padding: 30px; }
+
+h1 {
+  font-size: clamp(2.8rem, 7vw, 5.1rem);
+  line-height: 0.94;
+  letter-spacing: -0.065em;
+}
+
+.hero p {
+  font-size: 0.94rem;
+  line-height: 1.68;
+  margin-top: 18px;
+}
+
+.pipeline-badge {
+  margin-top: 20px;
+  padding: 9px 12px;
+  font-size: 0.82rem;
+}
+
+.hero-actions { margin-top: 22px; }
+
+.primary-button,
+.full-button,
+.ghost-button,
+.icon-button {
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease, filter 180ms ease;
+}
+
+.primary-button { padding: 12px 18px; font-size: 0.9rem; }
+.full-button { padding: 13px 18px; font-size: 0.92rem; }
+.ghost-button { padding: 11px 16px; font-size: 0.9rem; }
+.icon-button { width: 38px; height: 38px; }
+
+.primary-button:hover,
+.full-button:hover {
+  box-shadow: 0 20px 42px rgba(249, 115, 22, 0.34);
+  filter: saturate(1.12);
+}
+
+.status-card { padding: 15px; border-radius: 18px; }
+
+.pipeline-step {
+  padding: 12px;
+  border-radius: 16px;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.pipeline-step:hover {
+  transform: translateX(4px);
+  border-color: rgba(125, 211, 252, 0.38);
+  background: rgba(11, 28, 45, 0.62);
+}
+
+.metrics-grid { gap: 12px; }
+.metric {
+  padding: 15px 18px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.2);
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+.metric:hover { transform: translateY(-3px); border-color: rgba(125, 211, 252, 0.36); }
+
+.panel,
+.mini-panel { padding: 21px; }
+
+.task-card { min-height: 112px; border-radius: 18px; }
+.task-card small { line-height: 1.4; font-size: 0.8rem; }
+
+textarea,
+input,
+select { border-radius: 14px; padding: 11px 13px; font-size: 0.9rem; }
+textarea { min-height: 190px; }
+
+.result-box { border-radius: 18px; padding: 18px; }
+
+.task-card:hover,
+.history-list button:hover,
+.answer-option:hover { box-shadow: var(--shadow-hover); }
+
+@media (max-width: 680px) {
+  .hero-panel,
+  .hero-pipeline,
+  .panel,
+  .mini-panel { padding: 18px; border-radius: 20px; }
+}
