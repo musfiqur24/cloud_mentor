@@ -87,6 +87,15 @@ cloudmentor-serverless-prod/
 │   ├── env.production.example.json
 │   └── src/
 │       ├── app.mjs
+│       ├── config/
+│       │   └── runtime.mjs
+│       ├── lib/
+│       │   ├── files.mjs
+│       │   └── http.mjs
+│       ├── services/
+│       │   ├── ai.mjs
+│       │   ├── history.mjs
+│       │   └── uploads.mjs
 │       └── prompts.mjs
 ├── frontend/
 │   ├── .env.example
@@ -101,6 +110,8 @@ cloudmentor-serverless-prod/
 └── README.md
 ```
 
+The backend source is grouped by responsibility: `config/` holds runtime settings and AWS clients, `lib/` contains shared HTTP and file helpers, and `services/` contains AI, history, and upload workflows. `src/app.mjs` remains the Lambda entrypoint used by SAM.
+
 ---
 
 ## 4. Local development first
@@ -113,9 +124,10 @@ Use this before production deployment so students understand the app locally.
 cd cloudmentor-serverless-prod/backend
 cp env.local.example.json env.json
 npm install
-sam build
-sam local start-api --env-vars env.json
+npm run dev
 ```
+
+`npm run dev` uses nodemon to rebuild and restart SAM Local whenever backend source, the SAM template, or local environment configuration changes.
 
 Local backend:
 
