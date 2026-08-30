@@ -1152,7 +1152,10 @@ select:focus-visible,
   /* A single shared header row keeps every page aligned and pins the page
      controls during scroll.  The frame deliberately reaches the sidebar
      edge, so its divider meets the sidebar divider without a gap. */
-  .dashboard-shell { --app-header-height: 80px; }
+  .dashboard-shell { --app-header-height: 72px; }
+
+  .app-sidebar { padding-top: 12px; }
+  .app-sidebar--collapsed .app-sidebar__collapse-button { top: 20px; }
 
   .dashboard-main {
     --content-gutter: clamp(20px, 4vw, 52px);
