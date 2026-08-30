@@ -21,8 +21,50 @@ Parameters:
     Description: AI provider used by the Lambda function.
   CorsOrigin:
     Type: String
-    Default: '*'
-    Description: Allowed frontend origin.
+    Default: http://localhost:5173
+    Description: Allowed frontend origin. Use one explicit origin when browser refresh cookies are enabled.
+  MongoUri:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: MongoDB connection string for accounts, refresh sessions, history, and progress.
+  MongoDatabase:
+    Type: String
+    Default: cloudmentor
+    Description: MongoDB database name.
+  JwtAccessSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Long random secret used to sign short-lived access tokens.
+  JwtRefreshSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Different long random secret used to sign refresh tokens.
+  JwtAccessTtl:
+    Type: String
+    Default: 15m
+    Description: Access token lifetime.
+  JwtRefreshTtl:
+    Type: String
+    Default: 7d
+    Description: Refresh token lifetime.
+  CookieSecure:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Set to true for HTTPS deployments; false only for HTTP local development.
+  RefreshCookieSameSite:
+    Type: String
+    Default: None
+    AllowedValues:
+      - Lax
+      - Strict
+      - None
+    Description: Use None with HTTPS when the frontend and API are on different sites; use Lax for same-origin local development.
 
 Globals:
   Function:
@@ -46,6 +88,14 @@ Globals:
         MATERIALS_BUCKET: !Ref CloudMentorMaterialsBucket
         CORS_ORIGIN: !Ref CorsOrigin
         STORAGE_MODE: s3
+        MONGO_URI: !Ref MongoUri
+        MONGO_DB_NAME: !Ref MongoDatabase
+        JWT_ACCESS_SECRET: !Ref JwtAccessSecret
+        JWT_REFRESH_SECRET: !Ref JwtRefreshSecret
+        JWT_ACCESS_TTL: !Ref JwtAccessTtl
+        JWT_REFRESH_TTL: !Ref JwtRefreshTtl
+        COOKIE_SECURE: !Ref CookieSecure
+        REFRESH_COOKIE_SAME_SITE: !Ref RefreshCookieSameSite
 
 Resources:
   CloudMentorHttpApi:
@@ -65,6 +115,7 @@ Resources:
           - POST
           - PUT
           - OPTIONS
+        AllowCredentials: true
         MaxAge: 600
 
   CloudMentorFunction:
@@ -86,6 +137,36 @@ Resources:
           Properties:
             ApiId: !Ref CloudMentorHttpApi
             Path: /health
+            Method: GET
+        AuthSignUp:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CloudMentorHttpApi
+            Path: /auth/sign-up
+            Method: POST
+        AuthSignIn:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CloudMentorHttpApi
+            Path: /auth/sign-in
+            Method: POST
+        AuthRefresh:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CloudMentorHttpApi
+            Path: /auth/refresh
+            Method: POST
+        AuthSignOut:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CloudMentorHttpApi
+            Path: /auth/sign-out
+            Method: POST
+        AuthMe:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CloudMentorHttpApi
+            Path: /auth/me
             Method: GET
         UploadUrl:
           Type: HttpApi

@@ -1,18 +1,29 @@
 import { runtimeConfig } from '../config/runtime.mjs';
 
-const headers = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': runtimeConfig.corsOrigin,
-  'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-amz-date,x-amz-security-token,x-amz-content-sha256',
-  'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS'
-};
+function corsHeaders() {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': runtimeConfig.corsOrigin,
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-amz-date,x-amz-security-token,x-amz-content-sha256',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS'
+  };
 
-export function response(statusCode, body) {
-  return {
+  if (runtimeConfig.corsOrigin !== '*') {
+    headers['Access-Control-Allow-Credentials'] = 'true';
+  }
+
+  return headers;
+}
+
+export function response(statusCode, body, { cookies = [] } = {}) {
+  const result = {
     statusCode,
-    headers,
+    headers: corsHeaders(),
     body: statusCode === 204 ? '' : JSON.stringify(body)
   };
+
+  if (cookies.length) result.cookies = cookies;
+  return result;
 }
 
 export function parseJson(body) {

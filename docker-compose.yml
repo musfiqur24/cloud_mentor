@@ -1,0 +1,78 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Vite substitutes this at build time. Requests remain on the browser's
+        # origin, so cookies are sent to Nginx and proxied to the API.
+        VITE_API_BASE_URL: /api
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      # Keep Docker development independent of AWS credentials and resources.
+      STORAGE_MODE: local
+      LOCAL_DEV: "true"
+      LOCAL_STORAGE_DIR: /data/materials
+      LOCAL_HISTORY_FILE: /data/history.json
+      CORS_ORIGIN: "http://localhost:${FRONTEND_PORT:-8080}"
+      # These are intentionally empty/default-only. Supply a key through your
+      # shell or a local, uncommitted Compose environment file when needed.
+      AI_MODE: "${AI_MODE:-openrouter}"
+      AI_MODEL: "${AI_MODEL:-openai/gpt-4.1-mini}"
+      AI_API_KEY: "${AI_API_KEY:-}"
+      MONGO_URI: "mongodb://mongo:27017/${MONGO_DB_NAME:-cloudmentor}"
+      MONGO_DB_NAME: "${MONGO_DB_NAME:-cloudmentor}"
+      JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:-}"
+      JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:-}"
+      JWT_ACCESS_TTL: "${JWT_ACCESS_TTL:-15m}"
+      JWT_REFRESH_TTL: "${JWT_REFRESH_TTL:-7d}"
+      COOKIE_SECURE: "false"
+      REFRESH_COOKIE_SAME_SITE: "Lax"
+    expose:
+      - "3000"
+    volumes:
+      - backend_data:/data
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  mongo:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_DATABASE: cloudmentor
+    expose:
+      - "27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  backend_data:
+  mongo_data:

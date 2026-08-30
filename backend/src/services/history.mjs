@@ -3,14 +3,14 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { awsClients, runtimeConfig } from '../config/runtime.mjs';
+import { getMongoDatabase } from './mongo.mjs';
 
-export async function saveHistory({ type, title, request, result, resultData = null }) {
+export async function saveHistory(userId, { type, title, request, result, resultData = null }) {
   const createdAt = new Date().toISOString();
-  const id = crypto.randomUUID();
   const item = {
-    userId: runtimeConfig.demoUserId,
-    createdAtId: `${createdAt}#${id}`,
-    id,
+    userId: String(userId),
+    createdAtId: `${createdAt}#${crypto.randomUUID()}`,
+    id: crypto.randomUUID(),
     type,
     title,
     request,
@@ -18,6 +18,12 @@ export async function saveHistory({ type, title, request, result, resultData = n
     resultData,
     createdAt
   };
+
+  if (runtimeConfig.mongoUri) {
+    const database = await getMongoDatabase();
+    await database.collection('history').insertOne(item);
+    return item;
+  }
 
   if (runtimeConfig.useLocalHistory) {
     await saveLocalHistory(item);
@@ -32,9 +38,9 @@ export async function saveHistory({ type, title, request, result, resultData = n
   return item;
 }
 
-export async function saveProgress(payload) {
+export async function saveProgress(userId, payload) {
   const score = Number(payload.score || 0);
-  return saveHistory({
+  return saveHistory(userId, {
     type: 'progress',
     title: `Progress: ${payload.topic || 'Study session'}`,
     request: safeRequest(payload),
@@ -47,10 +53,23 @@ export async function saveProgress(payload) {
   });
 }
 
-export async function getHistory(limit) {
+export async function getHistory(userId, limit) {
+  const normalizedUserId = String(userId);
+
+  if (runtimeConfig.mongoUri) {
+    const database = await getMongoDatabase();
+    const items = await database.collection('history')
+      .find({ userId: normalizedUserId })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
+    return items.map(formatHistoryItem);
+  }
+
   if (runtimeConfig.useLocalHistory) {
     const items = await readLocalHistory();
     return items
+      .filter((item) => String(item.userId) === normalizedUserId)
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
       .slice(0, limit)
       .map(formatHistoryItem);
@@ -60,7 +79,7 @@ export async function getHistory(limit) {
     TableName: runtimeConfig.tableName,
     KeyConditionExpression: 'userId = :userId',
     ExpressionAttributeValues: {
-      ':userId': runtimeConfig.demoUserId
+      ':userId': normalizedUserId
     },
     ScanIndexForward: false,
     Limit: limit

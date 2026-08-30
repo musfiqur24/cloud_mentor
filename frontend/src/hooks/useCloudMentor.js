@@ -295,6 +295,20 @@ export function useCloudMentor() {
     setResultData(item.resultData || parseStructuredResult(item.result));
   }
 
+  function resetStudioOutput() {
+    setResult('');
+    setResultData(null);
+    setResultTitle(defaultOutputTitle(task));
+    setCopied(false);
+    setQuizAnswers({});
+    setQuizPage(0);
+    setQuizView('questions');
+    setFlashcardIndex(0);
+    setFlashcardFlipped(false);
+    setHintVisible(false);
+    setError('');
+  }
+
   function chooseQuizAnswer(questionIndex, optionIndex) {
     const questions = getQuizQuestions(resultData);
     const question = questions[questionIndex];
@@ -407,6 +421,7 @@ export function useCloudMentor() {
     quizScore,
     quizTopic,
     quizView,
+    resetStudioOutput,
     resetQuiz,
     reviewQuiz,
     result,

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { AlertCircle, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, LogOut, RefreshCw, X } from 'lucide-react';
+import AuthPage from './components/auth/AuthPage.jsx';
 import AppSidebar from './components/layout/AppSidebar.jsx';
 import TopBar from './components/layout/TopBar.jsx';
 import { DashboardPage } from './components/dashboard/DashboardPage.jsx';
 import { HistoryPage } from './components/history/HistoryPage.jsx';
 import { ProgressPage } from './components/progress/ProgressPage.jsx';
 import { StudyStudioPage } from './components/studio/StudyStudioPage.jsx';
+import { useAuth } from './hooks/useAuth.js';
 import { useCloudMentor } from './hooks/useCloudMentor.js';
 
 const pageMeta = {
@@ -15,7 +17,7 @@ const pageMeta = {
   progress: { title: 'Progress' }
 };
 
-function App() {
+function Workspace({ auth }) {
   const mentor = useCloudMentor();
   const [activeView, setActiveView] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -30,6 +32,19 @@ function App() {
   function openHistoryItem(item) {
     mentor.openHistoryItem(item);
     setActiveView(item.type === 'progress' ? 'progress' : 'studio');
+  }
+
+  function handleHeaderRefresh() {
+    if (activeView === 'studio') mentor.resetStudioOutput();
+    void mentor.checkHealth();
+  }
+
+  async function handleSignOut() {
+    try {
+      await auth.signOut();
+    } catch {
+      // The local session is intentionally cleared even if the API is offline.
+    }
   }
 
   function renderActiveView() {
@@ -57,9 +72,14 @@ function App() {
             title={currentPage.title}
             status={connectionStatus}
             actions={(
-              <button type="button" className="secondary-button topbar-action" onClick={mentor.checkHealth}>
-                <RefreshCw size={16} /> Refresh
-              </button>
+              <>
+                <button type="button" className="secondary-button topbar-action" onClick={handleHeaderRefresh}>
+                  <RefreshCw size={16} /> Refresh
+                </button>
+                <button type="button" className="secondary-button topbar-action topbar-signout" onClick={handleSignOut} title={`Sign out ${auth.user.name}`}>
+                  <LogOut size={16} /> Sign out
+                </button>
+              </>
             )}
           />
         </div>
@@ -81,6 +101,26 @@ function App() {
       </main>
     </div>
   );
+}
+
+function AuthLoading() {
+  return (
+    <main className="auth-loading" aria-live="polite">
+      <img src="/assets/cloud_mentor.png" alt="CloudMentor" />
+      <span>Restoring your workspace…</span>
+    </main>
+  );
+}
+
+function App() {
+  const auth = useAuth();
+
+  if (auth.loading) return <AuthLoading />;
+  if (!auth.user) return <AuthPage auth={auth} />;
+
+  // A new key cleanly remounts all learning state when a different account
+  // signs in on the same browser.
+  return <Workspace key={auth.user.id} auth={auth} />;
 }
 
 export default App;

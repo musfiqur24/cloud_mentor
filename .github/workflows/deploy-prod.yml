@@ -44,6 +44,9 @@ jobs:
           AI_MODE: ${{ secrets.AI_MODE }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
         run: |
           set -euo pipefail
           : "${AWS_REGION:?Missing AWS_REGION secret}"
@@ -64,6 +67,10 @@ jobs:
             exit 1
           fi
 
+          : "${MONGO_URI:?Missing MONGO_URI secret}"
+          : "${JWT_ACCESS_SECRET:?Missing JWT_ACCESS_SECRET secret}"
+          : "${JWT_REFRESH_SECRET:?Missing JWT_REFRESH_SECRET secret}"
+
       - name: Build and deploy backend with AWS SAM
         working-directory: backend
         env:
@@ -76,6 +83,12 @@ jobs:
           AI_MODE: ${{ secrets.AI_MODE }}
           CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          MONGO_DB_NAME: ${{ secrets.MONGO_DB_NAME }}
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_ACCESS_TTL: ${{ secrets.JWT_ACCESS_TTL }}
+          JWT_REFRESH_TTL: ${{ secrets.JWT_REFRESH_TTL }}
         run: |
           set -euo pipefail
           npm install --no-audit --no-fund
@@ -85,6 +98,9 @@ jobs:
           MODE_VALUE="${AI_MODE:-openrouter}"
           KEY_VALUE="${AI_API_KEY:-${OPENAI_API_KEY:-}}"
           CORS_VALUE="${CORS_ORIGIN:-http://${EC2_HOST}}"
+          MONGO_DB_VALUE="${MONGO_DB_NAME:-cloudmentor}"
+          ACCESS_TTL_VALUE="${JWT_ACCESS_TTL:-15m}"
+          REFRESH_TTL_VALUE="${JWT_REFRESH_TTL:-7d}"
 
           sam deploy \
             --stack-name "$SAM_STACK_NAME" \
@@ -97,7 +113,15 @@ jobs:
               OpenAiApiKey="$KEY_VALUE" \
               OpenAiModel="$MODEL_VALUE" \
               AiMode="$MODE_VALUE" \
-              CorsOrigin="$CORS_VALUE"
+              CorsOrigin="$CORS_VALUE" \
+              MongoUri="$MONGO_URI" \
+              MongoDatabase="$MONGO_DB_VALUE" \
+              JwtAccessSecret="$JWT_ACCESS_SECRET" \
+              JwtRefreshSecret="$JWT_REFRESH_SECRET" \
+              JwtAccessTtl="$ACCESS_TTL_VALUE" \
+              JwtRefreshTtl="$REFRESH_TTL_VALUE" \
+              CookieSecure="true" \
+              RefreshCookieSameSite="None"
 
       - name: Read backend outputs
         id: backend_outputs

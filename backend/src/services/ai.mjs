@@ -8,18 +8,18 @@ const STRUCTURED_ACTIONS = new Set(['explain', 'quiz', 'flashcards', 'studyPlan'
 const SUPPORTED_ACTIONS = new Set(['explain', 'quiz', 'flashcards', 'studyPlan']);
 const SYSTEM_MESSAGE = 'You are CloudMentor, a concise, helpful, classroom-safe AI tutor. Return clear Markdown unless the user prompt explicitly requests JSON.';
 
-export async function handleAiAction(action, payload) {
+export async function handleAiAction(action, payload, user) {
   if (!SUPPORTED_ACTIONS.has(action)) {
     throw new HttpError(404, 'Unsupported AI action.');
   }
 
-  validatePayload(action, payload);
+  validatePayload(action, payload, user);
 
   const prompt = buildPrompt(action, payload);
   const aiText = await callAi(prompt);
   const aiOutput = buildAiOutput(action, aiText, payload);
 
-  const item = await saveHistory({
+  const item = await saveHistory(user?.id, {
     type: action,
     title: titleFor(action, payload),
     request: safeRequest(payload),
@@ -419,7 +419,7 @@ function extractOpenAiText(data) {
   return chunks.join('\n').trim();
 }
 
-function validatePayload(action, payload) {
+function validatePayload(action, payload, user) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new HttpError(400, 'Please provide valid learning input.');
   }
@@ -434,7 +434,7 @@ function validatePayload(action, payload) {
   if (action === 'quiz') {
     requireText(payload.topic, 'Topic name', 160);
     const materialKey = requireText(payload.materialKey, 'Uploaded study material', 500);
-    validateObjectKey(materialKey);
+    validateObjectKey(materialKey, user?.id);
     requireText(payload.materialText, 'Uploaded study material', runtimeConfig.maxExtractedChars);
 
     const level = String(payload.level || '').trim().toLowerCase();

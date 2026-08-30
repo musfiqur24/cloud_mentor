@@ -43,6 +43,8 @@ Backend:  https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com
 - Amazon DynamoDB for history and progress
 - Amazon CloudWatch Logs for Lambda logs
 - OpenRouter or OpenAI API as the AI brain
+- MongoDB for user accounts, refresh-token sessions, history, and progress
+- JWT access tokens with rotating HTTP-only refresh tokens
 
 ### DevOps
 
@@ -117,6 +119,33 @@ The backend source is grouped by responsibility: `config/` holds runtime setting
 
 Use this before production deployment so students understand the app locally.
 
+### 4.0 Run the complete app with Docker Compose (recommended)
+
+This mode runs without an AWS login: React/Nginx, the Node API service, and MongoDB start as separate containers. The browser uses the same origin (`/api`), so refresh cookies work without cross-origin configuration.
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env: add your existing AI_API_KEY and replace both JWT placeholder values.
+docker compose up --build
+```
+
+Open `http://localhost:8080`, create an account, and sign in. The frontend is served by Nginx; the backend is available to the browser through `/api`.
+
+```powershell
+# Stop containers but retain MongoDB and uploaded-material volumes.
+docker compose down
+```
+
+Never commit `.env`. It is already ignored. The existing AI key belongs only in `backend/env.json` for SAM Local or in the root `.env` file for Docker Compose—never in frontend variables or example files.
+
+### 4.0.1 Authentication configuration
+
+CloudMentor uses a short-lived access JWT (default 15 minutes) in browser memory and a rotating refresh JWT (default 7 days) in an HTTP-only cookie. MongoDB stores users, hashed passwords, and hashed refresh-token records. Every learning asset, upload, history item, and progress record is scoped to the signed-in user.
+
+For SAM Local, copy `backend/env.local.example.json` to `backend/env.json`, keep your existing `AI_API_KEY`, then replace the two JWT placeholders and point `MONGO_URI` to MongoDB. On Windows with SAM Local in Docker, the provided `mongodb://host.docker.internal:27017/cloudmentor` URI reaches a local Mongo container.
+
+For a browser frontend and API on different HTTPS sites, use `COOKIE_SECURE=true` and `REFRESH_COOKIE_SAME_SITE=None`. Docker Compose uses `Lax` and `false` because it is same-origin HTTP on localhost.
+
 ### 4.1 Backend local setup
 
 ```bash
@@ -150,9 +179,15 @@ Configure a real AI provider in `backend/env.json`. OpenRouter is the default an
     "AI_MODEL": "openai/gpt-4.1-mini",
     "TABLE_NAME": "",
     "MATERIALS_BUCKET": "",
-    "CORS_ORIGIN": "*",
+    "CORS_ORIGIN": "http://localhost:5173",
     "STORAGE_MODE": "local",
-    "LOCAL_DEV": "true"
+    "LOCAL_DEV": "true",
+    "MONGO_URI": "mongodb://host.docker.internal:27017/cloudmentor",
+    "MONGO_DB_NAME": "cloudmentor",
+    "JWT_ACCESS_SECRET": "replace-with-a-long-random-access-secret",
+    "JWT_REFRESH_SECRET": "replace-with-a-different-long-random-refresh-secret",
+    "COOKIE_SECURE": "false",
+    "REFRESH_COOKIE_SAME_SITE": "Lax"
   }
 }
 ```
@@ -282,6 +317,10 @@ AI_API_KEY
 AI_MODEL
 AI_MODE
 CORS_ORIGIN
+MONGO_URI
+MONGO_DB_NAME
+JWT_ACCESS_SECRET
+JWT_REFRESH_SECRET
 EC2_HOST
 EC2_USER
 EC2_SSH_KEY
@@ -296,6 +335,7 @@ SAM_STACK_NAME=cloudmentor-prod
 AI_MODEL=openai/gpt-4.1-mini
 AI_MODE=openrouter
 CORS_ORIGIN=http://YOUR_EC2_PUBLIC_IP
+MONGO_DB_NAME=cloudmentor
 EC2_HOST=YOUR_EC2_PUBLIC_IP
 EC2_USER=ubuntu
 EC2_APP_DIR=/opt/cloudmentor

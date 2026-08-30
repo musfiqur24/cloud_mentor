@@ -10,10 +10,18 @@ let pdf2JsonModulePromise;
 // invocation. The second parser is only used when the first one cannot read it.
 const PDF_EXTRACTION_TIMEOUT_MS = 12_000;
 
-export function buildObjectKey(originalName) {
+function normalizeUserId(userId) {
+  const normalized = String(userId || '').trim();
+  if (!/^[a-zA-Z0-9-]{1,128}$/.test(normalized)) {
+    throw new HttpError(400, 'Invalid user for this upload.');
+  }
+  return normalized;
+}
+
+export function buildObjectKey(originalName, userId) {
   const now = new Date().toISOString().replace(/[:.]/g, '-');
   const id = crypto.randomUUID();
-  return `uploads/${runtimeConfig.demoUserId}/${now}__${id}__${originalName}`;
+  return `uploads/${normalizeUserId(userId)}/${now}__${id}__${sanitizeFileName(originalName)}`;
 }
 
 export function sanitizeFileName(value) {
@@ -29,22 +37,24 @@ export function sanitizeContentType(value) {
   return String(value || 'application/octet-stream').split(';')[0].trim().slice(0, 120) || 'application/octet-stream';
 }
 
-export function validateObjectKey(key) {
-  if (!key || !key.startsWith(`uploads/${runtimeConfig.demoUserId}/`)) {
+export function validateObjectKey(key, userId) {
+  const normalizedUserId = normalizeUserId(userId);
+  const normalizedKey = String(key || '');
+  if (!normalizedKey || !normalizedKey.startsWith(`uploads/${normalizedUserId}/`)) {
     throw new HttpError(400, 'Invalid upload key.');
   }
 
-  if (key.includes('..') || key.includes('\\')) {
+  if (normalizedKey.includes('..') || normalizedKey.includes('\\')) {
     throw new HttpError(400, 'Invalid upload key.');
   }
 }
 
-export function safeLocalPath(key) {
-  validateObjectKey(key);
+export function safeLocalPath(key, userId) {
+  validateObjectKey(key, userId);
   const filePath = path.resolve(runtimeConfig.localStorageDir, key);
   const rootPath = path.resolve(runtimeConfig.localStorageDir);
 
-  if (!filePath.startsWith(rootPath)) {
+  if (!filePath.startsWith(`${rootPath}${path.sep}`)) {
     throw new HttpError(400, 'Invalid local upload path.');
   }
 

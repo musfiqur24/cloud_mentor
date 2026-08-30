@@ -15,7 +15,7 @@ import {
 import { HttpError } from '../lib/http.mjs';
 import { saveHistory } from './history.mjs';
 
-export async function createUploadUrl(payload) {
+export async function createUploadUrl(payload, user) {
   const originalName = sanitizeFileName(payload.fileName || 'cloudmentor-notes.txt');
   const contentType = sanitizeContentType(payload.contentType || 'application/octet-stream');
   const size = Number(payload.size || 0);
@@ -24,7 +24,7 @@ export async function createUploadUrl(payload) {
     throw new HttpError(400, 'File is too large. Keep uploads under 2 MB.');
   }
 
-  const key = buildObjectKey(originalName);
+  const key = buildObjectKey(originalName, user?.id);
 
   if (runtimeConfig.useLocalStorage) {
     return {
@@ -58,14 +58,14 @@ export async function createUploadUrl(payload) {
   };
 }
 
-export async function handleLocalFileUpload(event, pathName) {
+export async function handleLocalFileUpload(event, pathName, user) {
   if (!runtimeConfig.useLocalStorage) {
     throw new HttpError(403, 'Local upload endpoint is only available when STORAGE_MODE=local.');
   }
 
   const encodedKey = pathName.slice('/local-upload/'.length);
   const key = decodeURIComponent(encodedKey);
-  validateObjectKey(key);
+  validateObjectKey(key, user?.id);
 
   const buffer = event.isBase64Encoded
     ? Buffer.from(event.body || '', 'base64')
@@ -73,16 +73,16 @@ export async function handleLocalFileUpload(event, pathName) {
 
   const originalName = originalNameFromKey(key);
   const contentType = sanitizeContentType(event.headers?.['content-type'] || event.headers?.['Content-Type'] || 'application/octet-stream');
-  return storeLocalUpload({ key, originalName, contentType, buffer });
+  return storeLocalUpload({ key, originalName, contentType, buffer, user });
 }
 
-export async function handleLocalBase64FileUpload(payload) {
+export async function handleLocalBase64FileUpload(payload, user) {
   if (!runtimeConfig.useLocalStorage) {
     throw new HttpError(403, 'Local upload endpoint is only available when STORAGE_MODE=local.');
   }
 
   const key = String(payload.key || '').trim();
-  validateObjectKey(key);
+  validateObjectKey(key, user?.id);
 
   const encoded = String(payload.contentBase64 || '')
     .replace(/^data:[^;]+;base64,/i, '')
@@ -98,21 +98,21 @@ export async function handleLocalBase64FileUpload(payload) {
 
   const originalName = sanitizeFileName(payload.originalName || payload.fileName || originalNameFromKey(key));
   const contentType = sanitizeContentType(payload.contentType || 'application/octet-stream');
-  return storeLocalUpload({ key, originalName, contentType, buffer });
+  return storeLocalUpload({ key, originalName, contentType, buffer, user });
 }
 
-async function storeLocalUpload({ key, originalName, contentType, buffer }) {
+async function storeLocalUpload({ key, originalName, contentType, buffer, user }) {
   if (buffer.length > runtimeConfig.maxUploadBytes) {
     throw new HttpError(400, 'File is too large. Keep uploads under 2 MB.');
   }
 
-  const filePath = safeLocalPath(key);
+  const filePath = safeLocalPath(key, user?.id);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, buffer);
 
   const processed = await buildProcessedFileResponse({ key, originalName, contentType, buffer, storageMode: 'local-filesystem' });
 
-  await saveHistory({
+  await saveHistory(user?.id, {
     type: 'upload',
     title: `Upload: ${originalName}`,
     request: { key, originalName, contentType, storageMode: 'local-filesystem' },
@@ -124,18 +124,18 @@ async function storeLocalUpload({ key, originalName, contentType, buffer }) {
   return processed;
 }
 
-export async function processUploadedFile(payload) {
+export async function processUploadedFile(payload, user) {
   const key = String(payload.key || '').trim();
   const originalName = sanitizeFileName(payload.originalName || payload.fileName || path.basename(key));
   const contentType = sanitizeContentType(payload.contentType || 'application/octet-stream');
 
-  validateObjectKey(key);
+  validateObjectKey(key, user?.id);
 
   let buffer;
   let storageMode;
 
   if (runtimeConfig.useLocalStorage) {
-    const filePath = safeLocalPath(key);
+    const filePath = safeLocalPath(key, user?.id);
     buffer = await fs.readFile(filePath).catch(() => {
       throw new HttpError(404, 'Local file was not found. Upload it again, then process it.');
     });
@@ -158,7 +158,7 @@ export async function processUploadedFile(payload) {
 
   const processed = await buildProcessedFileResponse({ key, originalName, contentType, buffer, storageMode });
 
-  await saveHistory({
+  await saveHistory(user?.id, {
     type: 'upload',
     title: `Upload: ${originalName}`,
     request: { key, originalName, contentType, storageMode },
