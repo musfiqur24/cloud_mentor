@@ -42,8 +42,7 @@ Backend:  https://YOUR_API_ID.execute-api.YOUR_REGION.amazonaws.com
 - Amazon S3 for uploaded study materials
 - Amazon DynamoDB for history and progress
 - Amazon CloudWatch Logs for Lambda logs
-- OpenAI API as the AI brain
-- Mock AI mode for classroom demos without OpenAI billing
+- OpenRouter or OpenAI API as the AI brain
 
 ### DevOps
 
@@ -141,14 +140,14 @@ Test:
 curl http://localhost:3000/health
 ```
 
-For free classroom testing, use mock mode in `backend/env.json`:
+Configure a real AI provider in `backend/env.json`. OpenRouter is the default and uses provider-qualified model names:
 
 ```json
 {
   "CloudMentorFunction": {
-    "AI_MODE": "mock",
-    "OPENAI_API_KEY": "",
-    "OPENAI_MODEL": "gpt-4.1-mini",
+    "AI_MODE": "openrouter",
+    "AI_API_KEY": "your-openrouter-api-key",
+    "AI_MODEL": "openai/gpt-4.1-mini",
     "TABLE_NAME": "",
     "MATERIALS_BUCKET": "",
     "CORS_ORIGIN": "*",
@@ -183,17 +182,14 @@ VITE_API_BASE_URL=http://localhost:3000
 
 ---
 
-## 5. Create an OpenAI API key
+## 5. Configure an AI API key
 
-1. Go to the OpenAI Platform API key page.
-2. Create a new secret key.
-3. Save it somewhere safe.
-4. For local testing, put it only in `backend/env.json` if `AI_MODE=openai`.
-5. For production, put it in GitHub Actions secret `OPENAI_API_KEY`.
+1. Create an API key with OpenRouter or OpenAI.
+2. Store it only in `backend/env.json` for local work, or a GitHub Actions secret for deployment.
+3. Use `AI_MODE=openrouter` with an OpenRouter key and a model such as `openai/gpt-4.1-mini`.
+4. Use `AI_MODE=openai` with a direct OpenAI key and a model such as `gpt-4.1-mini`.
 
-Never commit the API key to GitHub.
-
-Use `AI_MODE=mock` if you want to deploy the app without OpenAI billing while teaching.
+Never commit an AI API key to GitHub or place one in a frontend `VITE_*` variable.
 
 ---
 
@@ -282,8 +278,8 @@ AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
 AWS_REGION
 SAM_STACK_NAME
-OPENAI_API_KEY
-OPENAI_MODEL
+AI_API_KEY
+AI_MODEL
 AI_MODE
 CORS_ORIGIN
 EC2_HOST
@@ -297,8 +293,8 @@ Example values:
 ```text
 AWS_REGION=ap-southeast-1
 SAM_STACK_NAME=cloudmentor-prod
-OPENAI_MODEL=gpt-4.1-mini
-AI_MODE=openai
+AI_MODEL=openai/gpt-4.1-mini
+AI_MODE=openrouter
 CORS_ORIGIN=http://YOUR_EC2_PUBLIC_IP
 EC2_HOST=YOUR_EC2_PUBLIC_IP
 EC2_USER=ubuntu
@@ -321,25 +317,17 @@ or:
 -----END OPENSSH PRIVATE KEY-----
 ```
 
-### Demo deployment without OpenAI billing
-
-Use:
-
-```text
-AI_MODE=mock
-OPENAI_API_KEY=
-```
-
-The workflow can deploy mock mode without a real OpenAI key.
-
 ### Real AI deployment
 
 Use:
 
 ```text
-AI_MODE=openai
-OPENAI_API_KEY=sk-proj-your-real-key
+AI_MODE=openrouter
+AI_API_KEY=your-openrouter-api-key
+AI_MODEL=openai/gpt-4.1-mini
 ```
+
+The deployment workflow also accepts the legacy `OPENAI_API_KEY` and `OPENAI_MODEL` secret names.
 
 ---
 
@@ -425,7 +413,7 @@ Endpoints:
 
 ```text
 GET  /health
-POST /summarize
+POST /explain
 POST /quiz
 POST /flashcards
 POST /study-plan
@@ -439,7 +427,7 @@ POST /save-progress
 
 Private bucket for uploaded study materials.
 
-S3 is used when students upload files from the frontend. The backend generates a pre-signed URL, the browser uploads the file to S3, and Lambda processes supported text files.
+S3 is used when students upload files from the frontend. The backend generates a pre-signed URL, the browser uploads the file to S3, and Lambda processes supported text files and searchable PDFs.
 
 ### DynamoDB
 
@@ -484,14 +472,8 @@ Expected response includes:
   "ok": true,
   "service": "CloudMentor API",
   "storageMode": "s3",
-  "aiMode": "openai"
+  "aiMode": "openrouter"
 }
-```
-
-If you deployed with mock mode, `aiMode` will show:
-
-```json
-"aiMode": "mock"
 ```
 
 ---
@@ -520,25 +502,28 @@ CORS_ORIGIN=http://YOUR_EC2_PUBLIC_IP
 
 Then re-run the workflow.
 
-For quick classroom demo only, you can set:
+For temporary local testing, you can set:
 
 ```text
 CORS_ORIGIN=*
 ```
 
-### OpenAI key error
+### AI key error
 
-If using real AI:
+For OpenRouter, configure:
+
+```text
+AI_MODE=openrouter
+AI_API_KEY=your-openrouter-api-key
+AI_MODEL=openai/gpt-4.1-mini
+```
+
+For a direct OpenAI key, configure:
 
 ```text
 AI_MODE=openai
-OPENAI_API_KEY=sk-proj-your-real-key
-```
-
-If using mock mode:
-
-```text
-AI_MODE=mock
+AI_API_KEY=sk-your-openai-key
+AI_MODEL=gpt-4.1-mini
 ```
 
 ### EC2 SSH failure

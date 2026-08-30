@@ -49,7 +49,7 @@ export function HistoryPage({ mentor, onOpenHistory }) {
           <div className="empty-state compact-empty">
             <Sparkles size={34} />
             <h2>No saved work yet</h2>
-            <p>Generate a summary, quiz, flashcards, or a study plan to build your history.</p>
+            <p>Generate an explanation, quiz, flashcards, or a study plan to build your history.</p>
           </div>
         )}
       </section>

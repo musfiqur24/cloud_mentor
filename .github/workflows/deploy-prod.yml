@@ -39,8 +39,11 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
           AI_MODE: ${{ secrets.AI_MODE }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
         run: |
           set -euo pipefail
           : "${AWS_REGION:?Missing AWS_REGION secret}"
@@ -49,9 +52,15 @@ jobs:
           : "${EC2_USER:?Missing EC2_USER secret}"
           : "${EC2_SSH_KEY:?Missing EC2_SSH_KEY secret}"
 
-          MODE="${AI_MODE:-openai}"
-          if [ "$MODE" != "mock" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
-            echo "OPENAI_API_KEY is required when AI_MODE is openai. Use AI_MODE=mock for a no-billing demo deployment."
+          MODE="${AI_MODE:-openrouter}"
+          if [ "$MODE" != "openrouter" ] && [ "$MODE" != "openai" ]; then
+            echo "AI_MODE must be either openrouter or openai."
+            exit 1
+          fi
+
+          KEY_VALUE="${AI_API_KEY:-${OPENAI_API_KEY:-}}"
+          if [ -z "$KEY_VALUE" ]; then
+            echo "AI_API_KEY is required. OPENAI_API_KEY remains supported as a legacy secret name."
             exit 1
           fi
 
@@ -60,6 +69,8 @@ jobs:
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           SAM_STACK_NAME: ${{ secrets.SAM_STACK_NAME }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           AI_MODE: ${{ secrets.AI_MODE }}
@@ -70,9 +81,9 @@ jobs:
           npm install --no-audit --no-fund
           sam build
 
-          MODEL_VALUE="${OPENAI_MODEL:-gpt-4.1-mini}"
-          MODE_VALUE="${AI_MODE:-openai}"
-          KEY_VALUE="${OPENAI_API_KEY:-mock-placeholder-no-openai-key}"
+          MODEL_VALUE="${AI_MODEL:-${OPENAI_MODEL:-openai/gpt-4.1-mini}}"
+          MODE_VALUE="${AI_MODE:-openrouter}"
+          KEY_VALUE="${AI_API_KEY:-${OPENAI_API_KEY:-}}"
           CORS_VALUE="${CORS_ORIGIN:-http://${EC2_HOST}}"
 
           sam deploy \

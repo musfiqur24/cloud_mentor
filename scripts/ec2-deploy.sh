@@ -6,9 +6,9 @@ APP_USER="${APP_USER:-ubuntu}"
 PUBLIC_HOST="${PUBLIC_HOST:-${EC2_PUBLIC_IP:-}}"
 PUBLIC_FRONTEND_ORIGIN="${PUBLIC_FRONTEND_ORIGIN:-}"
 FRONTEND_API_BASE_URL="${FRONTEND_API_BASE_URL:-}"
-OPENAI_API_KEY="${OPENAI_API_KEY:-}"
-OPENAI_MODEL="${OPENAI_MODEL:-gpt-4.1-mini}"
-AI_MODE="${AI_MODE:-mock}"
+AI_API_KEY="${AI_API_KEY:-${OPENAI_API_KEY:-}}"
+AI_MODEL="${AI_MODEL:-${OPENAI_MODEL:-openai/gpt-4.1-mini}}"
+AI_MODE="${AI_MODE:-openrouter}"
 AWS_REGION="${AWS_REGION:-ap-southeast-1}"
 STORAGE_MODE="${STORAGE_MODE:-s3}"
 MATERIALS_BUCKET="${MATERIALS_BUCKET:-}"
@@ -34,8 +34,8 @@ mkdir -p backend
 cat > backend/env.ec2.json <<JSON
 {
   "CloudMentorFunction": {
-    "OPENAI_API_KEY": "${OPENAI_API_KEY}",
-    "OPENAI_MODEL": "${OPENAI_MODEL}",
+    "AI_API_KEY": "${AI_API_KEY}",
+    "AI_MODEL": "${AI_MODEL}",
     "AI_MODE": "${AI_MODE}",
     "TABLE_NAME": "${TABLE_NAME}",
     "MATERIALS_BUCKET": "${MATERIALS_BUCKET}",

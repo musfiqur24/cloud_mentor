@@ -21,7 +21,7 @@ export async function createUploadUrl(payload) {
   const size = Number(payload.size || 0);
 
   if (size && size > runtimeConfig.maxUploadBytes) {
-    throw new HttpError(400, 'File is too large for this classroom demo. Keep uploads under 2 MB.');
+    throw new HttpError(400, 'File is too large. Keep uploads under 2 MB.');
   }
 
   const key = buildObjectKey(originalName);
@@ -31,9 +31,9 @@ export async function createUploadUrl(payload) {
       mode: 'local',
       key,
       bucket: 'local-filesystem',
-      uploadUrl: `/local-upload/${encodeURIComponent(key)}`,
+      uploadUrl: '/local-upload-base64',
       expiresInSeconds: 900,
-      note: 'SAM local mode stores files in the Lambda local filesystem instead of S3.'
+      note: 'SAM local mode sends file bytes as Base64 JSON before storing them in the Lambda local filesystem.'
     };
   }
 
@@ -71,18 +71,46 @@ export async function handleLocalFileUpload(event, pathName) {
     ? Buffer.from(event.body || '', 'base64')
     : Buffer.from(event.body || '', 'utf8');
 
+  const originalName = originalNameFromKey(key);
+  const contentType = sanitizeContentType(event.headers?.['content-type'] || event.headers?.['Content-Type'] || 'application/octet-stream');
+  return storeLocalUpload({ key, originalName, contentType, buffer });
+}
+
+export async function handleLocalBase64FileUpload(payload) {
+  if (!runtimeConfig.useLocalStorage) {
+    throw new HttpError(403, 'Local upload endpoint is only available when STORAGE_MODE=local.');
+  }
+
+  const key = String(payload.key || '').trim();
+  validateObjectKey(key);
+
+  const encoded = String(payload.contentBase64 || '')
+    .replace(/^data:[^;]+;base64,/i, '')
+    .trim();
+  if (!encoded || encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) {
+    throw new HttpError(400, 'The selected file could not be encoded for local upload. Choose the file again and retry.');
+  }
+
+  const buffer = Buffer.from(encoded, 'base64');
+  if (!buffer.length) {
+    throw new HttpError(400, 'The selected file is empty.');
+  }
+
+  const originalName = sanitizeFileName(payload.originalName || payload.fileName || originalNameFromKey(key));
+  const contentType = sanitizeContentType(payload.contentType || 'application/octet-stream');
+  return storeLocalUpload({ key, originalName, contentType, buffer });
+}
+
+async function storeLocalUpload({ key, originalName, contentType, buffer }) {
   if (buffer.length > runtimeConfig.maxUploadBytes) {
-    throw new HttpError(400, 'File is too large for this classroom demo. Keep uploads under 2 MB.');
+    throw new HttpError(400, 'File is too large. Keep uploads under 2 MB.');
   }
 
   const filePath = safeLocalPath(key);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, buffer);
 
-  const localBaseName = path.basename(key);
-  const originalName = localBaseName.includes('__') ? localBaseName.split('__').slice(2).join('__') : localBaseName;
-  const contentType = sanitizeContentType(event.headers?.['content-type'] || event.headers?.['Content-Type'] || 'application/octet-stream');
-  const processed = buildProcessedFileResponse({ key, originalName, contentType, buffer, storageMode: 'local-filesystem' });
+  const processed = await buildProcessedFileResponse({ key, originalName, contentType, buffer, storageMode: 'local-filesystem' });
 
   await saveHistory({
     type: 'upload',
@@ -125,10 +153,10 @@ export async function processUploadedFile(payload) {
   }
 
   if (buffer.length > runtimeConfig.maxUploadBytes) {
-    throw new HttpError(400, 'File is too large for AI extraction in this classroom demo. Keep uploads under 2 MB.');
+    throw new HttpError(400, 'File is too large for AI extraction. Keep uploads under 2 MB.');
   }
 
-  const processed = buildProcessedFileResponse({ key, originalName, contentType, buffer, storageMode });
+  const processed = await buildProcessedFileResponse({ key, originalName, contentType, buffer, storageMode });
 
   await saveHistory({
     type: 'upload',
@@ -142,8 +170,8 @@ export async function processUploadedFile(payload) {
   return processed;
 }
 
-function buildProcessedFileResponse({ key, originalName, contentType, buffer, storageMode }) {
-  const extraction = extractTextFromFile(buffer, originalName, contentType);
+async function buildProcessedFileResponse({ key, originalName, contentType, buffer, storageMode }) {
+  const extraction = await extractTextFromFile(buffer, originalName, contentType);
 
   if (!extraction.supported) {
     return {
@@ -155,7 +183,7 @@ function buildProcessedFileResponse({ key, originalName, contentType, buffer, st
       storageMode,
       textSupported: false,
       extractedText: '',
-      message: 'File uploaded and stored. CloudMentor can auto-load text-based files only: .txt, .md, .csv, .json, .yaml, .yml, and .log. For PDF/DOCX, store the file here and paste the important text into the notes box.'
+      message: extraction.message || 'File uploaded and stored, but CloudMentor could not extract readable text from it.'
     };
   }
 
@@ -170,4 +198,9 @@ function buildProcessedFileResponse({ key, originalName, contentType, buffer, st
     extractedText: extraction.text,
     message: 'File uploaded and text was loaded into the CloudMentor workspace.'
   };
+}
+
+function originalNameFromKey(key) {
+  const localBaseName = path.basename(key);
+  return localBaseName.includes('__') ? localBaseName.split('__').slice(2).join('__') : localBaseName;
 }

@@ -5,14 +5,16 @@
   "description": "AWS Lambda backend for CloudMentor with S3 uploads",
   "main": "src/app.mjs",
   "scripts": {
-    "dev": "nodemon --watch src --watch template.yaml --watch env.json --ext mjs,json,yaml,yml --ignore .aws-sam --exec \"sam build && sam local start-api --env-vars env.json\"",
+    "dev": "nodemon --watch src --watch template.yaml --watch env.json --watch package.json --watch package-lock.json --ext mjs,json,yaml,yml --ignore .aws-sam --exec \"sam build && sam local start-api --warm-containers EAGER --env-vars env.json\"",
     "check": "node --check src/app.mjs && node --check src/prompts.mjs && node --check src/config/runtime.mjs && node --check src/lib/http.mjs && node --check src/lib/files.mjs && node --check src/services/ai.mjs && node --check src/services/history.mjs && node --check src/services/uploads.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.758.0",
     "@aws-sdk/client-s3": "^3.758.0",
     "@aws-sdk/lib-dynamodb": "^3.758.0",
-    "@aws-sdk/s3-request-presigner": "^3.758.0"
+    "@aws-sdk/s3-request-presigner": "^3.758.0",
+    "pdf-parse": "^2.4.5",
+    "pdf2json": "^4.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

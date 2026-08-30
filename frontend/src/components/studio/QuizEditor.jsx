@@ -1,7 +1,7 @@
 import { FileUp, Loader2, ShieldCheck, Sparkles, UploadCloud } from 'lucide-react';
 import { formatBytes } from '../../utils/learning.js';
 
-export function NotesEditor({ mentor }) {
+export function QuizEditor({ mentor }) {
   const SelectedIcon = mentor.selectedTask.icon;
 
   return (
@@ -9,39 +9,35 @@ export function NotesEditor({ mentor }) {
       <div className="section-heading">
         <div className="section-icon"><SelectedIcon size={21} /></div>
         <div className="section-heading__copy">
-          <h2>{mentor.selectedTask.label}</h2>
-          <p>{mentor.selectedTask.description}</p>
+          <h2>Generate a quiz</h2>
+          <p>Choose a topic, then upload the study material that the quiz must use.</p>
         </div>
       </div>
 
-      <label className="field-label" htmlFor="notes">Notes or topic</label>
-      <textarea
-        id="notes"
-        value={mentor.notes}
-        onChange={(event) => mentor.setNotes(event.target.value)}
-        placeholder="Paste class notes, a concept, or a lesson topic here…"
+      <label className="field-label" htmlFor="quiz-topic">Topic name</label>
+      <input
+        id="quiz-topic"
+        value={mentor.quizTopic}
+        onChange={(event) => mentor.setQuizTopic(event.target.value)}
+        placeholder="For example: Docker containers"
       />
-      <div className="field-meta">
-        <span>{mentor.wordCount.toLocaleString()} words</span>
-        <span>Ready for AI</span>
-      </div>
 
-      <div className="upload-card">
+      <div className="upload-card upload-card--required">
         <div className="upload-heading">
           <span className="upload-icon"><UploadCloud size={20} /></span>
           <div>
-            <strong>Upload study material</strong>
-            <p>Text files and searchable PDFs can be loaded into your notes automatically.</p>
+            <strong>Upload study material <span className="required-mark">Required</span></strong>
+            <p>Quiz questions use only this file. Upload a text-based file or searchable PDF to continue.</p>
           </div>
         </div>
 
-        <label className="file-picker" htmlFor="study-file">
+        <label className="file-picker" htmlFor="quiz-study-file">
           <FileUp size={19} />
-          <span>{mentor.selectedFile ? mentor.selectedFile.name : 'Choose a file to add to this workspace'}</span>
+          <span>{mentor.selectedFile ? mentor.selectedFile.name : 'Choose a study file for this quiz'}</span>
           <input
-            id="study-file"
+            id="quiz-study-file"
             type="file"
-            accept=".txt,.md,.markdown,.csv,.json,.yaml,.yml,.log,.pdf,.doc,.docx"
+            accept=".txt,.md,.markdown,.csv,.json,.yaml,.yml,.log,.pdf,application/pdf"
             onChange={mentor.handleFileChange}
           />
         </label>
@@ -54,11 +50,12 @@ export function NotesEditor({ mentor }) {
             disabled={mentor.uploading || !mentor.selectedFile}
           >
             {mentor.uploading ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
-            {mentor.uploading ? 'Uploading…' : 'Upload & load'}
+            {mentor.uploading ? 'Uploading...' : 'Upload & load'}
           </button>
           {mentor.selectedFile && <span className="file-size">{formatBytes(mentor.selectedFile.size)}</span>}
         </div>
-        <p className="upload-note">{mentor.uploadInfo}</p>
+        <p className={`upload-note ${mentor.quizMaterial ? 'is-ready' : ''}`}>{mentor.uploadInfo}</p>
+        {mentor.quizMaterial && <p className="material-ready">Material ready: {mentor.quizMaterial.originalName}</p>}
       </div>
 
       <div className="settings-grid">
@@ -71,33 +68,23 @@ export function NotesEditor({ mentor }) {
           </select>
         </label>
         <label>
-          Study days
-          <input
-            type="number"
-            min="1"
-            max="30"
-            value={mentor.days}
-            onChange={(event) => mentor.setDays(event.target.value)}
-          />
+          Number of questions
+          <select value={mentor.quizCount} onChange={(event) => mentor.setQuizCount(event.target.value)}>
+            <option value="5">5 questions</option>
+            <option value="10">10 questions</option>
+            <option value="15">15 questions</option>
+          </select>
         </label>
       </div>
-
-      <label className="field-label" htmlFor="exam-date">Exam date <span>Optional</span></label>
-      <input
-        id="exam-date"
-        type="date"
-        value={mentor.examDate}
-        onChange={(event) => mentor.setExamDate(event.target.value)}
-      />
 
       <button
         type="button"
         className="primary-button wide-button"
         onClick={mentor.handleGenerate}
-        disabled={mentor.loading || !mentor.notes.trim()}
+        disabled={mentor.loading || !mentor.quizReady}
       >
         {mentor.loading ? <Loader2 className="spin" size={18} /> : <Sparkles size={18} />}
-        {mentor.loading ? 'Creating your learning asset…' : `Create ${mentor.selectedTask.shortLabel}`}
+        {mentor.loading ? 'Creating your quiz...' : 'Create quiz'}
       </button>
     </section>
   );

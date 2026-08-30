@@ -135,7 +135,7 @@ export function DashboardPage({ mentor, onNavigate, onOpenHistory }) {
           ) : (
             <div className="blank-card">
               <BrainCircuit size={30} />
-              <p>Your generated summaries, quizzes, and plans will appear here.</p>
+              <p>Your generated explanations, quizzes, and plans will appear here.</p>
             </div>
           )}
           <button type="button" className="text-button" onClick={() => onNavigate('history')}>View all history <ArrowRight size={16} /></button>

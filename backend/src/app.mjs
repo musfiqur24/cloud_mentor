@@ -1,15 +1,16 @@
 import { runtimeConfig } from './config/runtime.mjs';
 import { normalizePath, parseJson, response } from './lib/http.mjs';
-import { handleAiAction, isPlaceholderOpenAIKey } from './services/ai.mjs';
+import { handleAiAction, isPlaceholderApiKey } from './services/ai.mjs';
 import { getHistory, saveProgress } from './services/history.mjs';
 import {
   createUploadUrl,
+  handleLocalBase64FileUpload,
   handleLocalFileUpload,
   processUploadedFile
 } from './services/uploads.mjs';
 
 const aiActions = new Map([
-  ['/summarize', 'summarize'],
+  ['/explain', 'explain'],
   ['/quiz', 'quiz'],
   ['/flashcards', 'flashcards'],
   ['/study-plan', 'studyPlan']
@@ -30,8 +31,8 @@ export async function handler(event) {
         service: 'CloudMentor API',
         runtime: 'nodejs22.x',
         storageMode: runtimeConfig.useLocalStorage ? 'local-filesystem' : 's3',
-        aiMode: runtimeConfig.aiMode,
-        openAiKeyConfigured: Boolean(runtimeConfig.openAiApiKey) && !isPlaceholderOpenAIKey(runtimeConfig.openAiApiKey),
+        aiMode: runtimeConfig.aiProvider,
+        aiKeyConfigured: Boolean(runtimeConfig.aiApiKey) && !isPlaceholderApiKey(runtimeConfig.aiApiKey),
         bucketConfigured: Boolean(runtimeConfig.materialsBucket),
         timestamp: new Date().toISOString()
       });
@@ -49,6 +50,10 @@ export async function handler(event) {
 
     if (method === 'POST') {
       const body = parseJson(event.body);
+
+      if (pathName === '/local-upload-base64') {
+        return response(200, await handleLocalBase64FileUpload(body));
+      }
 
       if (pathName === '/upload-url') {
         return response(200, await createUploadUrl(body));

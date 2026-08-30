@@ -1,8 +1,13 @@
 export function buildPrompt(action, payload) {
-  const notes = sanitizeText(payload.notes || payload.topic || '');
+  const notes = sanitizeText(payload.notes || '');
+  const subject = sanitizeText(payload.subject || '');
+  const topic = sanitizeText(payload.topic || '');
+  const problem = sanitizeText(payload.problem || '');
+  const materialText = sanitizeText(payload.materialText || '');
   const level = sanitizeText(payload.level || 'beginner');
   const examDate = sanitizeText(payload.examDate || 'not provided');
   const days = clampDays(payload.days || 7);
+  const questionCount = clampQuestionCount(payload.questionCount || 5);
 
   const sharedRules = `
 You are CloudMentor, a friendly teaching assistant for students.
@@ -13,22 +18,44 @@ Student level: ${level}.
 `.trim();
 
   const prompts = {
-    summarize: `${sharedRules}
+    explain: `${sharedRules}
 
-Task: Summarize the following notes.
-Return Markdown with this structure:
-1. Short summary
-2. Key points
-3. Important terms
-4. Simple example
-5. 3 revision questions
+Task: Give a detailed, student-friendly explanation that directly solves the student's problem.
+Subject: ${subject}
+Topic: ${topic}
+Student's problem or question:
+${problem}
 
-Notes:
-${notes}`,
+Return ONLY valid JSON. Do not wrap it in Markdown or code fences.
+The JSON shape must be exactly:
+{
+  "type": "explanation",
+  "title": "short, helpful title",
+  "directAnswer": "a clear answer to the student's problem",
+  "sections": [
+    {
+      "heading": "section heading",
+      "content": "a detailed but readable explanation"
+    }
+  ],
+  "workedExample": {
+    "title": "short example title",
+    "steps": ["step 1", "step 2"]
+  },
+  "commonMistakes": ["mistake 1", "mistake 2"],
+  "keyTakeaways": ["takeaway 1", "takeaway 2", "takeaway 3"]
+}
+Rules:
+- Answer the stated problem first, then teach the topic in enough detail to make the answer understandable.
+- Include 3 to 5 meaningful sections, such as core concepts, how it works, why it matters, or how to solve it.
+- Give a worked example that fits the subject and topic.
+- Explain important terms in plain language inside the relevant section.
+- Include practical common mistakes and 3 to 5 concise key takeaways.
+- Do not invent facts, sources, or personal details.`,
 
     quiz: `${sharedRules}
 
-Task: Create an interactive quiz from the notes.
+Task: Create an interactive multiple-choice quiz about "${topic}" using ONLY the uploaded study material below as its factual source.
 Return ONLY valid JSON. Do not wrap it in Markdown or code fences.
 The JSON shape must be exactly:
 {
@@ -39,20 +66,22 @@ The JSON shape must be exactly:
       "question": "question text",
       "options": ["A option", "B option", "C option", "D option"],
       "answerIndex": 0,
-      "explanation": "one short explanation"
+      "explanation": "one short explanation grounded in the material"
     }
   ],
   "shortAnswerQuestions": ["short answer question 1", "short answer question 2"]
 }
 Rules:
-- Create exactly 5 multiple-choice questions.
-- Each question must have exactly 4 options.
+- Create exactly ${questionCount} multiple-choice questions.
+- Each question must have exactly 4 plausible options.
 - answerIndex must be a number from 0 to 3.
-- Questions should test understanding, not memorization only.
-- Difficulty: ${level}
+- Difficulty: ${level}.
+- Spread questions across the provided material and test understanding, not memorization only.
+- Do not ask anything that requires knowledge absent from the uploaded material.
+- Keep explanations short and clearly grounded in the material.
 
-Notes:
-${notes}`,
+Uploaded study material:
+${materialText}`,
 
     flashcards: `${sharedRules}
 
@@ -111,24 +140,21 @@ Rules:
 - Make it realistic for students.
 
 Topics or notes:
-${notes}`,
-
-    explain: `${sharedRules}
-
-Task: Explain the following concept simply, then explain it with a real-world technical example.
-
-Concept:
 ${notes}`
   };
 
-  return prompts[action] || prompts.explain;
+  return prompts[action] || '';
 }
 
 export function titleFor(action, payload) {
-  const raw = payload.topic || payload.notes || action;
-  const compact = sanitizeText(raw).replace(/\s+/g, ' ').slice(0, 70);
+  const source = action === 'explain'
+    ? payload.topic || payload.problem || payload.subject
+    : action === 'quiz'
+      ? payload.topic
+      : payload.topic || payload.notes || action;
+  const compact = sanitizeText(source).replace(/\s+/g, ' ').slice(0, 70);
   const label = {
-    summarize: 'Summary',
+    explain: 'Explanation',
     quiz: 'Interactive Quiz',
     flashcards: 'Flashcards',
     studyPlan: `${clampDays(payload.days || 7)}-Day Study Plan`,
@@ -147,4 +173,10 @@ function clampDays(value) {
   const days = Number(value || 7);
   if (!Number.isFinite(days)) return 7;
   return Math.min(Math.max(Math.round(days), 1), 30);
+}
+
+function clampQuestionCount(value) {
+  const count = Number(value || 5);
+  if (!Number.isFinite(count)) return 5;
+  return Math.min(Math.max(Math.round(count), 1), 15);
 }

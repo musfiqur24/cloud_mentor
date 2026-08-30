@@ -19,7 +19,6 @@ function AppSidebar({
   onViewChange,
   items = defaultItems,
   brand = 'CloudMentor',
-  subtitle = 'Study, one step at a time',
   collapsed = false,
   onCollapsedChange,
   status,
@@ -35,11 +34,12 @@ function AppSidebar({
   return (
     <aside className={sidebarClassName} aria-label="CloudMentor navigation">
       <div className="app-sidebar__brand">
-        <div className="app-sidebar__brand-mark" aria-hidden="true"><BookOpen size={20} /></div>
+        <div className="app-sidebar__brand-logo" aria-hidden="true">
+          <img src="/assets/cloud_mentor.png" alt="" />
+        </div>
         {!collapsed && (
           <div className="app-sidebar__brand-copy">
             <strong>{brand}</strong>
-            {subtitle && <span>{subtitle}</span>}
           </div>
         )}
         {onCollapsedChange && (

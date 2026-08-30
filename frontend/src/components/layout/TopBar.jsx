@@ -2,8 +2,6 @@ import { Menu } from 'lucide-react';
 
 function TopBar({
   title = 'Dashboard',
-  eyebrow,
-  description,
   status,
   onMenuToggle,
   actions,
@@ -26,9 +24,7 @@ function TopBar({
           </button>
         )}
         <div>
-          {eyebrow && <span className="top-bar__eyebrow">{eyebrow}</span>}
           <h1>{title}</h1>
-          {description && <p>{description}</p>}
         </div>
       </div>
 

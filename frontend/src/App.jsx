@@ -9,22 +9,10 @@ import { StudyStudioPage } from './components/studio/StudyStudioPage.jsx';
 import { useCloudMentor } from './hooks/useCloudMentor.js';
 
 const pageMeta = {
-  dashboard: {
-    title: 'Dashboard',
-    description: 'Your study work, in one calm place.'
-  },
-  studio: {
-    title: 'Study Studio',
-    description: 'Create a focused learning asset from your material.'
-  },
-  history: {
-    title: 'History',
-    description: 'Revisit the study work you have already created.'
-  },
-  progress: {
-    title: 'Progress',
-    description: 'Track your confidence and keep moving forward.'
-  }
+  dashboard: { title: 'Dashboard' },
+  studio: { title: 'Study Studio' },
+  history: { title: 'History' },
+  progress: { title: 'Progress' }
 };
 
 function App() {
@@ -63,17 +51,18 @@ function App() {
       />
 
       <main className="dashboard-main">
-        <TopBar
-          eyebrow="CloudMentor workspace"
-          title={currentPage.title}
-          description={currentPage.description}
-          status={connectionStatus}
-          actions={(
-            <button type="button" className="secondary-button topbar-action" onClick={mentor.checkHealth}>
-              <RefreshCw size={16} /> Refresh
-            </button>
-          )}
-        />
+        <div className={`app-header ${activeView === 'studio' ? 'app-header--compact' : ''}`}>
+          <TopBar
+            className={activeView === 'studio' ? 'top-bar--compact' : ''}
+            title={currentPage.title}
+            status={connectionStatus}
+            actions={(
+              <button type="button" className="secondary-button topbar-action" onClick={mentor.checkHealth}>
+                <RefreshCw size={16} /> Refresh
+              </button>
+            )}
+          />
+        </div>
 
         {mentor.error && (
           <section className="app-alert" role="alert" aria-live="polite">

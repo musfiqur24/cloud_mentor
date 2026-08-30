@@ -1,11 +1,11 @@
-import { CalendarDays, FileText, GraduationCap, Layers3 } from 'lucide-react';
+import { CalendarDays, GraduationCap, Layers3, MessageCircleQuestionMark } from 'lucide-react';
 
 export const taskMap = {
-  summarize: {
-    label: 'Summarize notes',
-    shortLabel: 'Summary',
-    icon: FileText,
-    description: 'Turn long notes into concise key points, terms, and revision prompts.'
+  explain: {
+    label: 'Explain a problem',
+    shortLabel: 'Explanation',
+    icon: MessageCircleQuestionMark,
+    description: 'Get a detailed, clear explanation for one subject, topic, and problem.'
   },
   quiz: {
     label: 'Generate a quiz',
@@ -26,6 +26,3 @@ export const taskMap = {
     description: 'Create a practical day-by-day plan around your exam date.'
   }
 };
-
-export const sampleNotes = `DevOps combines software development and IT operations to deliver applications faster and more reliably. CI/CD automates build, test, and deployment. Docker packages applications into containers. Kubernetes helps run and scale containers across multiple servers. Monitoring and logging help engineers detect incidents quickly.`;
-
