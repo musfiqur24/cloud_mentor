@@ -9,6 +9,25 @@ import {
 } from '../utils/learning.js';
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_QUIZ_FILES = 5;
+const MAX_QUIZ_MATERIAL_CHARS = 12_000;
+
+function fileSignature(file) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+function combineQuizMaterialText(materials) {
+  const usable = materials.filter((material) => material?.text?.trim());
+  if (usable.length === 0) return '';
+
+  // Reserve a fair share of the prompt for each uploaded source so one long
+  // PDF cannot hide every other file from the quiz generator.
+  const perFileBudget = Math.max(800, Math.floor(MAX_QUIZ_MATERIAL_CHARS / usable.length) - 90);
+  return usable
+    .map((material) => `[Study file: ${material.originalName}]\n${material.text.trim().slice(0, perFileBudget)}`)
+    .join('\n\n')
+    .slice(0, MAX_QUIZ_MATERIAL_CHARS);
+}
 
 function defaultOutputTitle(task) {
   const titles = {
@@ -32,7 +51,7 @@ export function useCloudMentor() {
   const [problem, setProblem] = useState('');
   const [quizTopic, setQuizTopic] = useState('');
   const [quizCount, setQuizCount] = useState(5);
-  const [quizMaterial, setQuizMaterial] = useState(null);
+  const [quizMaterials, setQuizMaterials] = useState([]);
   const [level, setLevel] = useState('beginner');
   const [days, setDays] = useState(7);
   const [examDate, setExamDate] = useState('');
@@ -50,8 +69,11 @@ export function useCloudMentor() {
   const [progressTopic, setProgressTopic] = useState('');
   const [progressScore, setProgressScore] = useState(0);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedQuizFiles, setSelectedQuizFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [quizUploading, setQuizUploading] = useState(false);
   const [uploadInfo, setUploadInfo] = useState('No file uploaded yet.');
+  const [quizUploadInfo, setQuizUploadInfo] = useState('Choose one or more study files, then upload them for this quiz.');
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizPage, setQuizPage] = useState(0);
   const [quizView, setQuizView] = useState('questions');
@@ -66,7 +88,8 @@ export function useCloudMentor() {
   ), [notes]);
 
   const explanationReady = Boolean(subject.trim() && explanationTopic.trim() && problem.trim());
-  const quizReady = Boolean(quizTopic.trim() && quizMaterial?.key && quizMaterial?.text?.trim());
+  const quizMaterialText = useMemo(() => combineQuizMaterialText(quizMaterials), [quizMaterials]);
+  const quizReady = Boolean(quizTopic.trim() && quizMaterials.length > 0 && quizMaterialText);
 
   const quizScore = useMemo(() => {
     const questions = getQuizQuestions(resultData);
@@ -133,7 +156,7 @@ export function useCloudMentor() {
       };
     } else if (task === 'quiz') {
       if (!quizReady) {
-        setError('Enter a topic and upload a supported study file or searchable PDF before creating a quiz.');
+        setError('Enter a topic and upload at least one supported study file or searchable PDF before creating a quiz.');
         return;
       }
       runner = api.quiz;
@@ -141,9 +164,12 @@ export function useCloudMentor() {
         topic: quizTopic.trim(),
         level,
         questionCount: Number(quizCount),
-        materialKey: quizMaterial.key,
-        materialName: quizMaterial.originalName,
-        materialText: quizMaterial.text
+        // materialKey is kept for older API deployments. New deployments use
+        // materialKeys to verify every uploaded file belongs to this user.
+        materialKey: quizMaterials[0].key,
+        materialKeys: quizMaterials.map((material) => material.key),
+        materialNames: quizMaterials.map((material) => material.originalName),
+        materialText: quizMaterialText
       };
     } else {
       if (!notes.trim()) {
@@ -182,9 +208,6 @@ export function useCloudMentor() {
   function handleFileChange(event) {
     const file = event.target.files?.[0] || null;
     setSelectedFile(file);
-    if (task === 'quiz') {
-      setQuizMaterial(null);
-    }
     setUploadInfo(file ? `${file.name} selected. Upload it to use it.` : 'No file uploaded yet.');
   }
 
@@ -222,22 +245,12 @@ export function useCloudMentor() {
           });
 
       if (processed.textSupported && processed.extractedText) {
-        if (task === 'quiz') {
-          setQuizMaterial({
-            key: processed.key || upload.key,
-            originalName: processed.originalName || selectedFile.name,
-            text: processed.extractedText
-          });
-          setUploadInfo(`Uploaded ${selectedFile.name}. Its ${processed.extractedText.length.toLocaleString()} characters are ready for this quiz.`);
-        } else {
-          setNotes((current) => {
-            const separator = current.trim() ? `\n\n--- Uploaded file: ${selectedFile.name} ---\n` : '';
-            return `${current.trim()}${separator}${processed.extractedText}`.trim();
-          });
-          setUploadInfo(`Uploaded ${selectedFile.name}. Loaded ${processed.extractedText.length.toLocaleString()} characters into your notes.`);
-        }
+        setNotes((current) => {
+          const separator = current.trim() ? `\n\n--- Uploaded file: ${selectedFile.name} ---\n` : '';
+          return `${current.trim()}${separator}${processed.extractedText}`.trim();
+        });
+        setUploadInfo(`Uploaded ${selectedFile.name}. Loaded ${processed.extractedText.length.toLocaleString()} characters into your notes.`);
       } else {
-        if (task === 'quiz') setQuizMaterial(null);
         setUploadInfo(processed.message || `Uploaded ${selectedFile.name}, but text could not be extracted automatically.`);
       }
 
@@ -247,6 +260,111 @@ export function useCloudMentor() {
       setUploadInfo(`Upload failed: ${err.message || 'The backend did not return a usable response.'}`);
     } finally {
       setUploading(false);
+    }
+  }
+
+  function handleQuizFilesChange(event) {
+    const incoming = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (incoming.length === 0) return;
+
+    const oversized = incoming.filter((file) => file.size > MAX_FILE_BYTES);
+    const validFiles = incoming.filter((file) => file.size <= MAX_FILE_BYTES);
+    const knownFiles = new Set([
+      ...selectedQuizFiles.map(fileSignature),
+      ...quizMaterials.map((material) => material.signature).filter(Boolean)
+    ]);
+    const uniqueFiles = validFiles.filter((file) => !knownFiles.has(fileSignature(file)));
+    const availableSlots = Math.max(MAX_QUIZ_FILES - quizMaterials.length - selectedQuizFiles.length, 0);
+    const addedFiles = uniqueFiles.slice(0, availableSlots);
+
+    if (addedFiles.length > 0) {
+      setSelectedQuizFiles((current) => [...current, ...addedFiles]);
+    }
+
+    const notes = [];
+    if (addedFiles.length > 0) notes.push(`${addedFiles.length} file${addedFiles.length === 1 ? '' : 's'} ready to upload`);
+    if (oversized.length > 0) notes.push(`${oversized.length} file${oversized.length === 1 ? '' : 's'} skipped (over 2 MB)`);
+    if (uniqueFiles.length > availableSlots) notes.push(`maximum ${MAX_QUIZ_FILES} files per quiz`);
+    if (addedFiles.length === 0 && notes.length === 0) notes.push('Those files are already part of this quiz');
+    setQuizUploadInfo(`${notes.join(' · ')}.`);
+  }
+
+  function removeSelectedQuizFile(signature) {
+    setSelectedQuizFiles((current) => current.filter((file) => fileSignature(file) !== signature));
+    setQuizUploadInfo('File removed from the upload list.');
+  }
+
+  function removeQuizMaterial(key) {
+    setQuizMaterials((current) => current.filter((material) => material.key !== key));
+    setQuizUploadInfo('File removed from this quiz.');
+  }
+
+  async function handleUploadQuizFiles() {
+    if (selectedQuizFiles.length === 0) {
+      setError('Choose at least one study file first.');
+      return;
+    }
+
+    setError('');
+    setQuizUploading(true);
+    const uploadedMaterials = [];
+    const retryFiles = [];
+    const notices = [];
+
+    try {
+      for (const [index, file] of selectedQuizFiles.entries()) {
+        setQuizUploadInfo(`Uploading ${file.name} (${index + 1} of ${selectedQuizFiles.length})…`);
+        const contentType = file.type || guessContentType(file.name);
+
+        try {
+          const upload = await api.createUploadUrl({
+            fileName: file.name,
+            contentType,
+            size: file.size
+          });
+          const localUploadResult = await api.uploadFile(upload, file);
+          const processed = upload.mode === 'local'
+            ? localUploadResult
+            : await api.processFile({
+                key: upload.key,
+                originalName: file.name,
+                contentType
+              });
+
+          if (processed.textSupported && processed.extractedText) {
+            uploadedMaterials.push({
+              key: processed.key || upload.key,
+              originalName: processed.originalName || file.name,
+              text: processed.extractedText,
+              sizeBytes: processed.sizeBytes || file.size,
+              signature: fileSignature(file)
+            });
+          } else {
+            notices.push(`${file.name}: ${processed.message || 'no readable text found'}`);
+          }
+        } catch (uploadError) {
+          retryFiles.push(file);
+          notices.push(`${file.name}: ${uploadError?.message || 'upload failed'}`);
+        }
+      }
+
+      if (uploadedMaterials.length > 0) {
+        setQuizMaterials((current) => [...current, ...uploadedMaterials].slice(0, MAX_QUIZ_FILES));
+      }
+      setSelectedQuizFiles(retryFiles);
+
+      if (uploadedMaterials.length > 0) {
+        const materialTotal = quizMaterials.length + uploadedMaterials.length;
+        const successText = `${uploadedMaterials.length} file${uploadedMaterials.length === 1 ? '' : 's'} added to this quiz (${materialTotal} total)`;
+        setQuizUploadInfo(notices.length ? `${successText}. ${notices.join(' · ')}` : `${successText}.`);
+      } else {
+        setQuizUploadInfo(notices.join(' · ') || 'No files could be loaded.');
+      }
+
+      if (uploadedMaterials.length > 0) await loadHistory();
+    } finally {
+      setQuizUploading(false);
     }
   }
 
@@ -397,8 +515,10 @@ export function useCloudMentor() {
     handleCopy,
     handleFileChange,
     handleGenerate,
+    handleQuizFilesChange,
     handleSaveProgress,
     handleUploadFile,
+    handleUploadQuizFiles,
     hintVisible,
     history,
     historyLoading,
@@ -415,7 +535,8 @@ export function useCloudMentor() {
     progressTopic,
     quizAnswers,
     quizCount,
-    quizMaterial,
+    quizMaterialText,
+    quizMaterials,
     quizPage,
     quizReady,
     quizScore,
@@ -424,10 +545,13 @@ export function useCloudMentor() {
     resetStudioOutput,
     resetQuiz,
     reviewQuiz,
+    removeQuizMaterial,
+    removeSelectedQuizFile,
     result,
     resultData,
     resultTitle,
     selectedFile,
+    selectedQuizFiles,
     selectedTask,
     setDays,
     setExamDate,
@@ -449,6 +573,8 @@ export function useCloudMentor() {
     task,
     uploadInfo,
     uploading,
+    quizUploadInfo,
+    quizUploading,
     wordCount,
     chooseQuizAnswer
   };

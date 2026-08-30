@@ -15,7 +15,7 @@ export function OutputPanel({ mentor }) {
           loadingTitle: 'Building your quiz',
           loadingText: 'CloudMentor is creating questions only from your uploaded study material.',
           emptyTitle: 'Your quiz will live here',
-          emptyText: 'Enter a topic, upload a study file or searchable PDF, and choose how many questions to create.'
+          emptyText: 'Enter a topic, upload one or more study files or searchable PDFs, and choose how many questions to create.'
         }
       : {
           loadingTitle: 'Creating your learning asset',

@@ -7,22 +7,23 @@ import { saveHistory } from './history.mjs';
 const STRUCTURED_ACTIONS = new Set(['explain', 'quiz', 'flashcards', 'studyPlan']);
 const SUPPORTED_ACTIONS = new Set(['explain', 'quiz', 'flashcards', 'studyPlan']);
 const SYSTEM_MESSAGE = 'You are CloudMentor, a concise, helpful, classroom-safe AI tutor. Return clear Markdown unless the user prompt explicitly requests JSON.';
+const MAX_QUIZ_MATERIAL_FILES = 10;
 
 export async function handleAiAction(action, payload, user) {
   if (!SUPPORTED_ACTIONS.has(action)) {
     throw new HttpError(404, 'Unsupported AI action.');
   }
 
-  validatePayload(action, payload, user);
+  const validatedPayload = validatePayload(action, payload, user);
 
-  const prompt = buildPrompt(action, payload);
+  const prompt = buildPrompt(action, validatedPayload);
   const aiText = await callAi(prompt);
-  const aiOutput = buildAiOutput(action, aiText, payload);
+  const aiOutput = buildAiOutput(action, aiText, validatedPayload);
 
   const item = await saveHistory(user?.id, {
     type: action,
-    title: titleFor(action, payload),
-    request: safeRequest(payload),
+    title: titleFor(action, validatedPayload),
+    request: safeRequest(validatedPayload),
     result: aiOutput.result,
     resultData: aiOutput.resultData
   });
@@ -428,14 +429,12 @@ function validatePayload(action, payload, user) {
     requireText(payload.subject, 'Subject name', 100);
     requireText(payload.topic, 'Topic', 160);
     requireText(payload.problem, 'Problem', 4000);
-    return;
+    return payload;
   }
 
   if (action === 'quiz') {
     requireText(payload.topic, 'Topic name', 160);
-    const materialKey = requireText(payload.materialKey, 'Uploaded study material', 500);
-    validateObjectKey(materialKey, user?.id);
-    requireText(payload.materialText, 'Uploaded study material', runtimeConfig.maxExtractedChars);
+    const quizMaterials = normalizeQuizMaterials(payload, user);
 
     const level = String(payload.level || '').trim().toLowerCase();
     if (!['beginner', 'intermediate', 'advanced'].includes(level)) {
@@ -446,7 +445,10 @@ function validatePayload(action, payload, user) {
     if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 15) {
       throw new HttpError(400, 'Choose a quiz question count from 1 to 15.');
     }
-    return;
+    return {
+      ...payload,
+      ...quizMaterials
+    };
   }
 
   requireText(payload.notes || payload.topic, 'Notes or topic', runtimeConfig.maxExtractedChars);
@@ -455,6 +457,64 @@ function validatePayload(action, payload, user) {
     throw new HttpError(400, 'Study plans can be at most 30 days.');
   }
 
+  return payload;
+}
+
+function normalizeQuizMaterials(payload, user) {
+  const hasMaterialKeys = Object.hasOwn(payload, 'materialKeys');
+  const rawKeys = hasMaterialKeys ? payload.materialKeys : [payload.materialKey];
+
+  if (!Array.isArray(rawKeys) || rawKeys.length < 1) {
+    throw new HttpError(400, 'Upload at least one study file for this quiz.');
+  }
+  if (rawKeys.length > MAX_QUIZ_MATERIAL_FILES) {
+    throw new HttpError(400, `Upload no more than ${MAX_QUIZ_MATERIAL_FILES} study files for one quiz.`);
+  }
+
+  const materialKeys = rawKeys.map((key) => {
+    const materialKey = requireText(key, 'Uploaded study material', 500);
+    validateObjectKey(materialKey, user?.id);
+    return materialKey;
+  });
+
+  if (new Set(materialKeys).size !== materialKeys.length) {
+    throw new HttpError(400, 'Each uploaded study file can be included only once.');
+  }
+
+  const materialText = buildCombinedMaterialText(payload, materialKeys.length);
+  return {
+    // Keep materialKey for existing API clients and stored history consumers.
+    materialKey: materialKeys[0],
+    materialKeys,
+    materialText
+  };
+}
+
+function buildCombinedMaterialText(payload, materialCount) {
+  if (typeof payload.materialText === 'string') {
+    return requireText(payload.materialText, 'Uploaded study material', runtimeConfig.maxExtractedChars);
+  }
+
+  if (!Array.isArray(payload.materialTexts) || payload.materialTexts.length < 1) {
+    throw new HttpError(400, 'Uploaded study material is required.');
+  }
+  if (payload.materialTexts.length !== materialCount) {
+    throw new HttpError(400, 'Each uploaded study file needs readable text before creating a quiz.');
+  }
+
+  let totalLength = 0;
+  const sections = payload.materialTexts.map((text, index) => {
+    const material = requireText(text, `Study file ${index + 1}`, runtimeConfig.maxExtractedChars);
+    const heading = `Study material ${index + 1}:`;
+    totalLength += heading.length + material.length + 2;
+    if (totalLength > runtimeConfig.maxExtractedChars) {
+      throw new HttpError(400, `Combined study material is too long. Keep all files under ${runtimeConfig.maxExtractedChars} characters in total.`);
+    }
+    return `${heading}\n${material}`;
+  });
+
+  const combined = sections.join('\n\n');
+  return requireText(combined, 'Combined study material', runtimeConfig.maxExtractedChars);
 }
 
 function requireText(value, label, maxLength) {
@@ -485,6 +545,7 @@ function escapeTableText(value) {
 function safeRequest(payload) {
   const copy = { ...payload };
   delete copy.materialText;
+  delete copy.materialTexts;
   if (copy.notes && copy.notes.length > 1000) {
     copy.notes = `${copy.notes.slice(0, 1000)}...`;
   }

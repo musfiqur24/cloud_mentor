@@ -1,8 +1,21 @@
-import { FileUp, Loader2, ShieldCheck, Sparkles, UploadCloud } from 'lucide-react';
+import {
+  FileText,
+  FileUp,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  UploadCloud,
+  X
+} from 'lucide-react';
 import { formatBytes } from '../../utils/learning.js';
 
 export function QuizEditor({ mentor }) {
   const SelectedIcon = mentor.selectedTask.icon;
+  const selectedTotalBytes = mentor.selectedQuizFiles.reduce((total, file) => total + file.size, 0);
+  const uploadLabel = mentor.selectedQuizFiles.length === 1
+    ? 'Upload & load file'
+    : `Upload & load ${mentor.selectedQuizFiles.length} files`;
 
   return (
     <section className="studio-input card">
@@ -27,35 +40,82 @@ export function QuizEditor({ mentor }) {
           <span className="upload-icon"><UploadCloud size={20} /></span>
           <div>
             <strong>Upload study material <span className="required-mark">Required</span></strong>
-            <p>Quiz questions use only this file. Upload a text-based file or searchable PDF to continue.</p>
+            <p>Quiz questions use these files only. Add up to five text-based files or searchable PDFs.</p>
           </div>
         </div>
 
         <label className="file-picker" htmlFor="quiz-study-file">
           <FileUp size={19} />
-          <span>{mentor.selectedFile ? mentor.selectedFile.name : 'Choose a study file for this quiz'}</span>
+          <span>{mentor.selectedQuizFiles.length ? `${mentor.selectedQuizFiles.length} file${mentor.selectedQuizFiles.length === 1 ? '' : 's'} chosen` : 'Choose study files for this quiz'}</span>
           <input
             id="quiz-study-file"
             type="file"
+            multiple
             accept=".txt,.md,.markdown,.csv,.json,.yaml,.yml,.log,.pdf,application/pdf"
-            onChange={mentor.handleFileChange}
+            onChange={mentor.handleQuizFilesChange}
           />
         </label>
+
+        {mentor.selectedQuizFiles.length > 0 && (
+          <ul className="quiz-file-list quiz-file-list--queued" aria-label="Files ready to upload">
+            {mentor.selectedQuizFiles.map((file) => {
+              const signature = `${file.name}:${file.size}:${file.lastModified}`;
+              return (
+                <li key={signature}>
+                  <FileText size={15} aria-hidden="true" />
+                  <span title={file.name}>{file.name}</span>
+                  <small>{formatBytes(file.size)}</small>
+                  <button
+                    type="button"
+                    onClick={() => mentor.removeSelectedQuizFile(signature)}
+                    aria-label={`Remove ${file.name} from the upload list`}
+                    title="Remove file"
+                  >
+                    <X size={15} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
         <div className="upload-actions">
           <button
             type="button"
             className="secondary-button compact-button"
-            onClick={mentor.handleUploadFile}
-            disabled={mentor.uploading || !mentor.selectedFile}
+            onClick={mentor.handleUploadQuizFiles}
+            disabled={mentor.quizUploading || mentor.selectedQuizFiles.length === 0}
           >
-            {mentor.uploading ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
-            {mentor.uploading ? 'Uploading...' : 'Upload & load'}
+            {mentor.quizUploading ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
+            {mentor.quizUploading ? 'Uploading…' : uploadLabel}
           </button>
-          {mentor.selectedFile && <span className="file-size">{formatBytes(mentor.selectedFile.size)}</span>}
+          {mentor.selectedQuizFiles.length > 0 && <span className="file-size">{formatBytes(selectedTotalBytes)}</span>}
         </div>
-        <p className={`upload-note ${mentor.quizMaterial ? 'is-ready' : ''}`}>{mentor.uploadInfo}</p>
-        {mentor.quizMaterial && <p className="material-ready">Material ready: {mentor.quizMaterial.originalName}</p>}
+
+        <p className={`upload-note ${mentor.quizMaterials.length ? 'is-ready' : ''}`}>{mentor.quizUploadInfo}</p>
+
+        {mentor.quizMaterials.length > 0 && (
+          <div className="quiz-materials-ready">
+            <p className="material-ready">{mentor.quizMaterials.length} study file{mentor.quizMaterials.length === 1 ? '' : 's'} ready for this quiz</p>
+            <ul className="quiz-file-list" aria-label="Study files included in this quiz">
+              {mentor.quizMaterials.map((material) => (
+                <li key={material.key}>
+                  <FileText size={15} aria-hidden="true" />
+                  <span title={material.originalName}>{material.originalName}</span>
+                  <small>{formatBytes(material.sizeBytes)}</small>
+                  <button
+                    type="button"
+                    onClick={() => mentor.removeQuizMaterial(material.key)}
+                    aria-label={`Remove ${material.originalName} from this quiz`}
+                    title="Remove from quiz"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div className="settings-grid">
@@ -84,7 +144,7 @@ export function QuizEditor({ mentor }) {
         disabled={mentor.loading || !mentor.quizReady}
       >
         {mentor.loading ? <Loader2 className="spin" size={18} /> : <Sparkles size={18} />}
-        {mentor.loading ? 'Creating your quiz...' : 'Create quiz'}
+        {mentor.loading ? 'Creating your quiz…' : 'Create quiz'}
       </button>
     </section>
   );

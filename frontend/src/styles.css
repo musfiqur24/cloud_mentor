@@ -1388,6 +1388,21 @@ select:focus-visible,
   object-fit: contain;
 }
 
+/* Make the desktop identity easy to spot without letting the marketing copy
+   dominate the sign-in screen. The mobile brand intentionally keeps the
+   smaller shared base size above. */
+.auth-hero__brand {
+  gap: 14px;
+  min-height: 58px;
+  font-size: clamp(1.55rem, 2vw, 1.8rem);
+  line-height: 1;
+}
+
+.auth-hero__brand img {
+  width: 58px;
+  height: 58px;
+}
+
 .auth-hero__content {
   max-width: 600px;
   margin: auto 0;
@@ -1408,18 +1423,18 @@ select:focus-visible,
   max-width: 620px;
   margin: 15px 0 16px;
   font-family: "Fraunces", Georgia, serif;
-  font-size: clamp(2.5rem, 4.6vw, 4.7rem);
+  font-size: clamp(2.25rem, 3.65vw, 3.75rem);
   font-weight: 650;
   letter-spacing: -0.065em;
-  line-height: 0.98;
+  line-height: 1;
 }
 
 .auth-hero__content > p {
   max-width: 520px;
   margin: 0;
   color: #d6e6da;
-  font-size: clamp(0.96rem, 1.35vw, 1.08rem);
-  line-height: 1.7;
+  font-size: clamp(0.9rem, 1.15vw, 1rem);
+  line-height: 1.6;
 }
 
 .auth-hero__features {
@@ -1462,8 +1477,8 @@ select:focus-visible,
 
 .auth-card__mobile-brand { display: none; color: var(--ink); }
 .auth-card__eyebrow { display: block; color: #9a6239; font-size: 0.73rem; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
-.auth-card h2 { margin: 9px 0 7px; color: var(--ink); font-family: "Fraunces", Georgia, serif; font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 650; letter-spacing: -0.05em; line-height: 1.06; }
-.auth-card > p:not(.auth-card__fine-print) { margin: 0; color: var(--muted); font-size: 0.91rem; line-height: 1.55; }
+.auth-card h2 { margin: 9px 0 7px; color: var(--ink); font-family: "Fraunces", Georgia, serif; font-size: clamp(1.6rem, 2.45vw, 2rem); font-weight: 650; letter-spacing: -0.05em; line-height: 1.1; }
+.auth-card > p:not(.auth-card__fine-print) { margin: 0; color: var(--muted); font-size: 0.87rem; line-height: 1.5; }
 
 .auth-mode-switch {
   display: grid;
@@ -1569,4 +1584,140 @@ select:focus-visible,
   .auth-card__mobile-brand { margin-bottom: 34px; }
   .auth-card h2 { font-size: 1.75rem; }
   .auth-mode-switch { margin-top: 23px; }
+}
+
+/* Quiz multi-file material picker --------------------------------------- */
+.quiz-file-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quiz-file-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 7px;
+  border: 1px solid #dfe5df;
+  border-radius: 9px;
+  color: #425147;
+  background: #ffffff;
+}
+
+.quiz-file-list--queued li { border-style: dashed; border-color: #c7d8cb; }
+.quiz-file-list li > svg { color: #39725a; }
+.quiz-file-list li > span { overflow: hidden; font-size: 0.72rem; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.quiz-file-list li > small { color: #748075; font-size: 0.65rem; font-weight: 700; white-space: nowrap; }
+.quiz-file-list li > button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  color: #8b5147;
+  background: #faeee9;
+}
+.quiz-file-list li > button:hover { color: #ffffff; background: #b85b4a; }
+
+.quiz-materials-ready {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e9e4;
+}
+
+.quiz-materials-ready .material-ready { margin: 0; }
+
+@media (min-width: 921px) {
+  .studio-input .quiz-file-list { gap: 5px; margin-top: 6px; }
+  .studio-input .quiz-file-list li { min-height: 29px; padding: 5px 6px; }
+  .studio-input .quiz-file-list li > span { font-size: 0.67rem; }
+  .studio-input .quiz-file-list li > small { font-size: 0.61rem; }
+  .studio-input .quiz-file-list li > button { width: 22px; height: 22px; }
+  .studio-input .quiz-materials-ready { margin-top: 6px; padding-top: 6px; }
+}
+
+/* Login panel colour swap ------------------------------------------------
+   The logo artwork has dark natural tones, so it reads clearly on the light
+   learning panel. The sign-in form moves to the green panel with high-contrast
+   fields and a light primary action. */
+.auth-hero {
+  color: #252821;
+  background:
+    radial-gradient(circle at 10% 12%, rgba(191, 219, 198, 0.38), transparent 19rem),
+    radial-gradient(circle at 88% 84%, rgba(235, 206, 165, 0.3), transparent 20rem),
+    #fbfaf6;
+}
+
+.auth-hero__brand {
+  align-self: center;
+  gap: 18px;
+  min-height: 92px;
+  color: #1e533e;
+  font-size: clamp(2rem, 2.7vw, 2.55rem);
+  line-height: 1;
+}
+
+.auth-hero__brand img {
+  width: 92px;
+  height: 92px;
+}
+
+.auth-hero__eyebrow { color: #2f7b5a; }
+.auth-hero h1 { color: #252821; }
+.auth-hero__content > p { color: #58665c; }
+
+.auth-hero__features > div {
+  border-color: #d6e3d8;
+  color: #365142;
+  background: rgba(255, 255, 255, 0.78);
+}
+.auth-hero__features svg { color: #b86b3e; }
+
+.auth-panel {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(144, 199, 165, 0.2), transparent 19rem),
+    radial-gradient(circle at 5% 100%, rgba(231, 187, 122, 0.16), transparent 18rem),
+    linear-gradient(145deg, #174d3a 0%, #235f49 52%, #174433 100%);
+}
+
+.auth-card__eyebrow { color: #e9bd86; }
+.auth-card h2 { color: #fffdf8; }
+.auth-card > p:not(.auth-card__fine-print) { color: #d5e5d9; }
+
+.auth-mode-switch {
+  border-color: rgba(236, 249, 239, 0.18);
+  background: rgba(255, 255, 255, 0.12);
+}
+.auth-mode-switch button { color: #d6e6da; }
+.auth-mode-switch button.is-active {
+  color: #1f583f;
+  background: #fffdf8;
+  box-shadow: 0 2px 8px rgba(7, 27, 20, 0.26);
+}
+
+.auth-form > label { color: #f1f8f2; }
+.auth-input { border-color: rgba(255, 255, 255, 0.3); background: #fffdf9; }
+.auth-input:focus-within { border-color: #e7bc83; box-shadow: 0 0 0 3px rgba(232, 188, 131, 0.2); }
+
+.auth-submit {
+  border-color: #fffdf8;
+  color: #1e543d;
+  background: #fffdf8;
+  box-shadow: 0 10px 22px rgba(5, 28, 20, 0.28);
+}
+.auth-submit:hover:not(:disabled) { color: #fffdf8; background: #b86b3e; box-shadow: 0 13px 24px rgba(5, 28, 20, 0.34); }
+.auth-card__fine-print { color: #c5d8cb; }
+
+@media (max-width: 900px) {
+  .auth-card__mobile-brand { color: #fffdf8; }
+}
+
+@media (max-width: 500px) {
+  .auth-hero__brand img { width: 72px; height: 72px; }
 }
